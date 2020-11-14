@@ -13,6 +13,8 @@
 
 const char CSV_SEPARATOR = ';';
 
+const bool DEBUG = false;
+
 class Graph {
 
 public:
@@ -53,7 +55,9 @@ void Graph::add_edge(int vertex_u, int vertex_v, bool bidirectional) {
     if (bidirectional) {
         matrix[vertex_v][vertex_u] = 1;
     }
-    printf("Adding edge: %d -> %d\n", vertex_u, vertex_v);
+    if (DEBUG) {
+        printf("Adding edge: %d -> %d\n", vertex_u, vertex_v);
+    }
 }
 
 void Graph::show_graph_matrix() {
@@ -98,18 +102,30 @@ void Graph::color_graph() {
     std::vector<int> vertex_stack;
     vertex_stack.push_back(0);
     int current_vertex;
-    while (vertex_stack.size() <= vertex_count) {
+    while (vertex_stack.size() <= vertex_count && !vertex_stack.empty()) {
         current_vertex = vertex_stack.back();
         check_neighbours_colors(current_vertex, vertex_stack);
         if (vertex_colors[current_vertex] == 0) {
             vertex_stack.pop_back();
         } else {
-            vertex_stack.push_back(current_vertex+1);
+            vertex_stack.push_back(current_vertex + 1);
         }
     }
     for (int x : vertex_stack) {
-        printf("Value on stack: %d\n", x);
+        if (DEBUG) {
+            printf("Value on stack: %d\n", x);
+        }
     }
+    for (int i = 0; i < vertex_count; i++) {
+        if (DEBUG) {
+            printf("Color for %d is %d\n", i, vertex_colors[i]);
+        } else if (i != vertex_count - 1) {
+            printf("%d ", vertex_colors[i]);
+        } else {
+            printf("%d", vertex_colors[i]);
+        }
+    }
+    printf("\n");
 }
 
 void Graph::load_graph_matrix_from_stdin() {
@@ -117,10 +133,10 @@ void Graph::load_graph_matrix_from_stdin() {
     std::vector<std::vector<int>> input_data;
     int num_of_vectors;
     std::getline(std::cin, line);
-    num_of_vectors = std::stoi(line);
+    int space_index = line.find(' ');
+    num_of_vectors = std::stoi(line.substr(0, space_index));
+    number_of_colors = std::stoi(line.substr(space_index + 1, line.size()));
     initialize_matrix(num_of_vectors);
-    std::getline(std::cin, line);
-    number_of_colors = std::stoi(line);
     for (int i = 0; i < num_of_vectors; i++) {
         std::vector<int> row;
         std::getline(std::cin, line);
@@ -166,7 +182,9 @@ int main() {
     for (int case_num = 0; case_num < number_of_cases; case_num++) {
         Graph graph = Graph();
         graph.load_graph_matrix_from_stdin();
-        graph.show_graph_matrix();
+        if (DEBUG) {
+            graph.show_graph_matrix();
+        }
         graph.color_graph();
         graph.deallocate_memory();
     }
