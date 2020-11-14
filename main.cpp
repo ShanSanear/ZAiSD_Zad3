@@ -125,7 +125,6 @@ void Graph::color_graph() {
             printf("%d", vertex_colors[i]);
         }
     }
-    printf("\n");
 }
 
 void Graph::load_graph_matrix_from_stdin() {
@@ -187,6 +186,9 @@ int main() {
         }
         graph.color_graph();
         graph.deallocate_memory();
+        if (case_num != number_of_cases-1) {
+            printf("\n");
+        }
     }
     return 0;
 }
