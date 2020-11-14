@@ -1,159 +1,180 @@
-// Algorytm kolorowania krawędzi grafu nieskierowanego
-// Data   : 26.05.2014
-// (C)2014 mgr Jerzy Wałaszek
-//----------------------------------------------------
-
+#include <ctime>
+#include <omp.h>
+#include <vector>
+#include <fstream>
+#include <filesystem>
+#include <iterator>
 #include <iostream>
+#include <chrono>
+#include <sstream>
+#include <queue>
+#include <stack>
 
-using namespace std;
+const char CSV_SEPARATOR = ';';
 
-// Definicja elementu listy sąsiedztwa
+class Graph {
 
-struct node {
-    node *next; // Następny element listy;
-    int vertex_number;          // Wierzchołek docelowy
-    int edge_number;          // Numer krawędzi
+public:
+    /// Constructor
+    Graph();
+
+    /// Shows graph's matrix
+    void show_graph_matrix();
+
+    void load_graph_matrix_from_stdin();
+
+    bool color_graph();
+
+    void deallocate_memory();
+
+private:
+    /// Maximum size of the matrix being considered
+    static const unsigned int MAX_MATRIX_SIZE = 30;
+    /// Matrix to be searched
+    int **matrix;
+    int *vertex_colors;
+    /// How many edges has already been loaded
+    int vertex_count = 0;
+    int highest_node_present = 0;
+    int number_of_colors = 0;
+
+    void add_edge(int vertex_u, int vertex_v, bool bidirectional);
+
+
+    void initialize_matrix(int num_of_vectors);
+
+    int check_neighbours(int vertex_to_check);
 };
 
+
+void Graph::add_edge(int vertex_u, int vertex_v, bool bidirectional) {
+    matrix[vertex_u][vertex_v] = 1;
+    if (bidirectional) {
+        matrix[vertex_v][vertex_u] = 1;
+    }
+    printf("Adding edge: %d -> %d\n", vertex_u, vertex_v);
+}
+
+void Graph::show_graph_matrix() {
+    int i, j;
+    for (i = 0; i < vertex_count; i++) {
+        for (j = 0; j < vertex_count; j++) {
+            printf("%d ", matrix[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+int Graph::check_neighbours(int vertex_to_check) {
+    int found_max = 0;
+    for (int other_vertex = 0; other_vertex < vertex_count; other_vertex++) {
+        if (other_vertex == vertex_to_check) {
+            continue;
+        }
+        if (matrix[vertex_to_check][other_vertex] == 1) {
+            found_max = found_max < vertex_colors[other_vertex] ?
+                    vertex_colors[other_vertex] : found_max;
+        }
+    }
+    return found_max;
+}
+
+bool Graph::color_graph() {
+    for (int i = 0; i < vertex_count; i++) {
+        vertex_colors[i] = 0;
+    }
+    std::vector<int> vertex_stack;
+    vertex_stack.push_back(0);
+    bool finished = false;
+    int i = 0;
+    int current_vertex;
+    int current_color;
+    int max_possible_color = 0;
+    int checked_max_possible;
+    while (!finished) {
+        i++;
+        if (i > 100) {
+            finished = true;
+        }
+        current_vertex = vertex_stack.front();
+        current_color = vertex_colors[current_vertex];
+        for (int other_vertex : vertex_stack) {
+            checked_max_possible = check_neighbours(other_vertex);
+            max_possible_color = max_possible_color < checked_max_possible ? checked_max_possible : max_possible_color;
+        }
+        if (max_possible_color < current_color+1) {
+            vertex_colors[current_vertex] = current_color+1;
+        } else {
+            vertex_stack.erase(vertex_stack.begin());
+            vertex_colors[current_vertex] = 0;
+        }
+        if (current_vertex < vertex_count) {
+            vertex_stack.insert(vertex_stack.begin(),current_vertex+1);
+        }
+    }
+    for (int x : vertex_stack) {
+        printf("Value on stack: %d\n", x);
+    }
+    return true;
+}
+
+void Graph::load_graph_matrix_from_stdin() {
+    std::string line;
+    std::vector<std::vector<int>> input_data;
+    int num_of_vectors;
+    std::getline(std::cin, line);
+    num_of_vectors = std::stoi(line);
+    initialize_matrix(num_of_vectors);
+//    std::getline(std::cin, line);
+//    number_of_colors = std::stoi(line);
+    for (int i = 0; i < num_of_vectors; i++) {
+        std::vector<int> row;
+        std::getline(std::cin, line);
+        std::stringstream basic_stringstream(line);
+        std::string provided_number;
+        int j = 0;
+        while (std::getline(basic_stringstream, provided_number, ' ')) {
+            int number = std::stoi(provided_number);
+            matrix[i][j] = number;
+            if (number == 1) {
+                add_edge(i, j, false);
+            }
+            j++;
+        }
+    }
+}
+
+void Graph::initialize_matrix(int num_of_vectors) {
+    matrix = new int *[num_of_vectors];
+    vertex_colors = new int[num_of_vectors];
+    for (int i = 0; i < num_of_vectors; ++i) {
+        matrix[i] = new int[num_of_vectors];
+    }
+    vertex_count = num_of_vectors;
+}
+
+void Graph::deallocate_memory() {
+    for (int i = 0; i < vertex_count; ++i) {
+        delete[] matrix[i];
+    }
+    delete[] matrix;
+}
+
+
+Graph::Graph() = default;
+
+
 int main() {
-    int number_of_vertexes, number_of_edges, vertex_u, vertex_v;
-    int current_vertex_color, *color_table, *order_table, *vertex_numbers_table;
-    int i;
-    node **graph, **second_graph, *current_node, *reference_node, *start_node;
-    bool *available_colors;
-
-    cin >> number_of_vertexes >> number_of_edges;            // Odczytujemy liczbę wierzchołków i krawędzi grafu
-
-    graph = new node *[number_of_vertexes];  // Tworzymy zerowy graf G
-    for (i = 0; i < number_of_vertexes; i++) graph[i] = nullptr;
-
-    second_graph = new node *[number_of_edges]; // Tworzymy zerowy graf GE
-    for (i = 0; i < number_of_edges; i++) second_graph[i] = nullptr;
-
-    color_table = new int[number_of_edges];       // Tablica kolorów wierzchołków
-    order_table = new int[number_of_edges];       // Tablica stopni wyjściowych wierzchołków
-    vertex_numbers_table = new int[number_of_edges];       // Tablica numerów wierzchołków
-    available_colors = new bool[number_of_edges];      // Tablica dostępności kolorów
-
-    // Odczytujemy definicje krawędzi grafu G
-
-    for (i = 0; i < number_of_edges; i++) {
-        cin >> vertex_v >> vertex_u;     // Czytamy wierzchołki
-        current_node = new node;   // Tworzymy rekord listy
-        current_node->vertex_number = vertex_u;          // Wypełniamy go danymi
-        current_node->edge_number = i;
-        current_node->next = graph[vertex_v]; // Element dołączamy do listy sąsiedztwa wierzchołka v
-        graph[vertex_v] = current_node;
-
-        current_node = new node;   // To samo dla krawędzi odwrotnej
-        current_node->vertex_number = vertex_v;
-        current_node->edge_number = i;
-        current_node->next = graph[vertex_u];
-        graph[vertex_u] = current_node;
-    }
-
-    // Tworzymy graf krawędziowy
-
-    for (vertex_v = 0; vertex_v < number_of_vertexes; vertex_v++) {    // Przechodzimy przez kolejne wierzchołki grafu
-        for (current_node = graph[vertex_v]; current_node; current_node = current_node->next) { // Przechodzimy przez listę sąsiadów wierzchołka v
-            for (reference_node = graph[current_node->vertex_number]; reference_node; reference_node = reference_node->next) { // Przechodzimy przez listę sąsiadów sąsiada v
-                if (reference_node->vertex_number != vertex_v) {
-                    start_node = new node;       // Tworzymy nowy element listy
-                    start_node->vertex_number = reference_node->edge_number;           // Wierzchołkiem docelowym będzie krawędź wychodząca
-                    start_node->next = second_graph[current_node->edge_number]; // Wierzchołkiem startowym będzie krawędź wchodząca
-                    second_graph[current_node->edge_number] = start_node;       // Dodajemy krawędź do grafu krawędziowego
-                }
-            }
-        }
-    }
-
-    // Rozpoczynamy algorytm kolorowania grafu krawędziowego
-
-    for (vertex_v = 0; vertex_v < number_of_edges; vertex_v++)      // Przeglądamy kolejne wierzchołki grafu
-    {
-        vertex_numbers_table[vertex_v] = vertex_v;               // Zapamiętujemy numer wierzchołka
-        order_table[vertex_v] = 0;               // Zerujemy jego stopień wyjściowy
-
-        for (current_node = second_graph[vertex_v]; current_node; current_node = current_node->next) // Przeglądamy kolejnych sąsiadów
-            order_table[vertex_v]++;              // Obliczamy stopień wyjściowy wierzchołka v
-
-        current_vertex_color = order_table[vertex_v];
-        int currently_checked_vertex;
-
-        for (currently_checked_vertex = vertex_v;
-             (currently_checked_vertex > 0) && (order_table[currently_checked_vertex - 1] < current_vertex_color);
-             currently_checked_vertex--) {
-            order_table[currently_checked_vertex] = order_table[currently_checked_vertex - 1];
-            vertex_numbers_table[currently_checked_vertex] = vertex_numbers_table[currently_checked_vertex - 1];
-        }
-
-        order_table[currently_checked_vertex] = current_vertex_color;
-        vertex_numbers_table[currently_checked_vertex] = vertex_v;
-    }
-
-    for (i = 0; i < number_of_edges; i++) {
-        color_table[i] = -1;
-    }
-
-    color_table[vertex_numbers_table[0]] = 0;
-
-    for (vertex_v = 1; vertex_v < number_of_edges; vertex_v++)      // Przeglądamy resztę grafu
-    {
-        for (i = 0; i < number_of_edges; i++) {
-            available_colors[i] = false;
-        }
-
-        for (current_node = second_graph[vertex_numbers_table[vertex_v]]; current_node; current_node = current_node->next) {
-            if (color_table[current_node->vertex_number] > -1) {
-                available_colors[color_table[current_node->vertex_number]] = true; // Oznaczamy kolor jako zajęty
-            }
-        }
-        int current_color;
-        for (current_color = 0; available_colors[current_color]; current_color++);
-
-        color_table[vertex_numbers_table[vertex_v]] = current_color;        // Przypisujemy go bieżącemu wierzchołkowi
-    }
-
-    // Wyświetlamy wyniki
-
-    cout << endl;
-    for (i = 0; i < number_of_edges; i++) available_colors[i] = true;
-    for (vertex_v = 0; vertex_v < number_of_vertexes; vertex_v++)
-        for (current_node = graph[vertex_v]; current_node; current_node = current_node->next)
-            if (available_colors[current_node->edge_number]) {
-                available_colors[current_node->edge_number] = false;
-                cout << "edge " << vertex_v << "-" << current_node->vertex_number << " has color "
-                     << color_table[current_node->edge_number] << endl;
-            }
-    cout << endl;
-
-    // Usuwamy tablice dynamiczne
-
-    for (vertex_v = 0; vertex_v < number_of_vertexes; vertex_v++) {
-        current_node = graph[vertex_v];
-        while (current_node) {
-            reference_node = current_node;
-            current_node = current_node->next;
-            delete reference_node;
-        }
-    }
-
-    for (vertex_v = 0; vertex_v < number_of_edges; vertex_v++) {
-        current_node = second_graph[vertex_v];
-        while (current_node) {
-            reference_node = current_node;
-            current_node = current_node->next;
-            delete reference_node;
-        }
-    }
-
-    delete[] graph;
-    delete[] second_graph;
-    delete[] color_table;
-    delete[] order_table;
-    delete[] vertex_numbers_table;
-    delete[] available_colors;
-
+//    int number_of_cases;
+//    std::string line;
+//    std::getline(std::cin, line);
+//    number_of_cases = std::stoi(line);
+//    for (int case_num = 0; case_num < number_of_cases; case_num++) {
+//        Graph graph = Graph();
+//        graph.load_graph_matrix_from_stdin();
+//        graph.show_graph_matrix();
+//        graph.color_graph();
+//        graph.deallocate_memory();
+//    }
     return 0;
 }
- 
