@@ -3,4 +3,4 @@ project(Zad_3)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(Zad_3 main.cpp)
+add_executable(Zad_3 Zad_3.cpp)
