@@ -24,7 +24,7 @@ public:
 
     void load_graph_matrix_from_stdin();
 
-    [[noreturn]] bool color_graph();
+    void color_graph();
 
     void deallocate_memory();
 
@@ -91,25 +91,25 @@ void Graph::check_neighbours_colors(int vertex_to_check, const std::vector<int> 
     }
 }
 
-[[noreturn]] bool Graph::color_graph() {
+void Graph::color_graph() {
     for (int i = 0; i < vertex_count; i++) {
         vertex_colors[i] = 0;
     }
     std::vector<int> vertex_stack;
     vertex_stack.push_back(0);
-    bool finished = false;
     int current_vertex;
-    int current_color;
-    int max_color_from_neighbours;
-    while (!finished) {
+    while (vertex_stack.size() <= vertex_count) {
         current_vertex = vertex_stack.back();
-        current_color = vertex_colors[current_vertex];
-        max_color_from_neighbours = check_neighbours_colors(current_vertex);
+        check_neighbours_colors(current_vertex, vertex_stack);
+        if (vertex_colors[current_vertex] == 0) {
+            vertex_stack.pop_back();
+        } else {
+            vertex_stack.push_back(current_vertex+1);
+        }
     }
     for (int x : vertex_stack) {
         printf("Value on stack: %d\n", x);
     }
-    return true;
 }
 
 void Graph::load_graph_matrix_from_stdin() {
@@ -159,16 +159,16 @@ Graph::Graph() = default;
 
 
 int main() {
-//    int number_of_cases;
-//    std::string line;
-//    std::getline(std::cin, line);
-//    number_of_cases = std::stoi(line);
-//    for (int case_num = 0; case_num < number_of_cases; case_num++) {
-//        Graph graph = Graph();
-//        graph.load_graph_matrix_from_stdin();
-//        graph.show_graph_matrix();
-//        graph.color_graph();
-//        graph.deallocate_memory();
-//    }
+    int number_of_cases;
+    std::string line;
+    std::getline(std::cin, line);
+    number_of_cases = std::stoi(line);
+    for (int case_num = 0; case_num < number_of_cases; case_num++) {
+        Graph graph = Graph();
+        graph.load_graph_matrix_from_stdin();
+        graph.show_graph_matrix();
+        graph.color_graph();
+        graph.deallocate_memory();
+    }
     return 0;
 }
