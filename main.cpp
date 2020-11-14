@@ -17,10 +17,10 @@ struct node {
 
 int main() {
     int number_of_vertexes, number_of_edges, vertex_u, vertex_v;
-    int d, *CT, *DT, *VT;
+    int d, *color_table, *order_table, *vertex_numbers_table;
     int i;
     node **graph, **second_graph, *p, *r, *s;
-    bool *C;
+    bool *available_colors;
 
     cin >> number_of_vertexes >> number_of_edges;            // Odczytujemy liczbę wierzchołków i krawędzi grafu
 
@@ -30,10 +30,10 @@ int main() {
     second_graph = new node *[number_of_edges]; // Tworzymy zerowy graf GE
     for (i = 0; i < number_of_edges; i++) second_graph[i] = nullptr;
 
-    CT = new int[number_of_edges];       // Tablica kolorów wierzchołków
-    DT = new int[number_of_edges];       // Tablica stopni wyjściowych wierzchołków
-    VT = new int[number_of_edges];       // Tablica numerów wierzchołków
-    C = new bool[number_of_edges];      // Tablica dostępności kolorów
+    color_table = new int[number_of_edges];       // Tablica kolorów wierzchołków
+    order_table = new int[number_of_edges];       // Tablica stopni wyjściowych wierzchołków
+    vertex_numbers_table = new int[number_of_edges];       // Tablica numerów wierzchołków
+    available_colors = new bool[number_of_edges];      // Tablica dostępności kolorów
 
     // Odczytujemy definicje krawędzi grafu G
 
@@ -68,52 +68,52 @@ int main() {
 
     for (vertex_v = 0; vertex_v < number_of_edges; vertex_v++)      // Przeglądamy kolejne wierzchołki grafu
     {
-        VT[vertex_v] = vertex_v;               // Zapamiętujemy numer wierzchołka
-        DT[vertex_v] = 0;               // Zerujemy jego stopień wyjściowy
+        vertex_numbers_table[vertex_v] = vertex_v;               // Zapamiętujemy numer wierzchołka
+        order_table[vertex_v] = 0;               // Zerujemy jego stopień wyjściowy
 
         for (p = second_graph[vertex_v]; p; p = p->next) // Przeglądamy kolejnych sąsiadów
-            DT[vertex_v]++;              // Obliczamy stopień wyjściowy wierzchołka v
+            order_table[vertex_v]++;              // Obliczamy stopień wyjściowy wierzchołka v
 
         // Sortujemy DT i VT
 
-        d = DT[vertex_v];
+        d = order_table[vertex_v];
 
-        for (i = vertex_v; (i > 0) && (DT[i - 1] < d); i--) {
-            DT[i] = DT[i - 1];
-            VT[i] = VT[i - 1];
+        for (i = vertex_v; (i > 0) && (order_table[i - 1] < d); i--) {
+            order_table[i] = order_table[i - 1];
+            vertex_numbers_table[i] = vertex_numbers_table[i - 1];
         }
 
-        DT[i] = d;
-        VT[i] = vertex_v;
+        order_table[i] = d;
+        vertex_numbers_table[i] = vertex_v;
     }
 
     // Teraz stosujemy algorytm zachłanny, lecz wierzchołki wybieramy wg VT
 
-    for (i = 0; i < number_of_edges; i++) CT[i] = -1;
+    for (i = 0; i < number_of_edges; i++) color_table[i] = -1;
 
-    CT[VT[0]] = 0;          // Wierzchołek startowy
+    color_table[vertex_numbers_table[0]] = 0;          // Wierzchołek startowy
 
     for (vertex_v = 1; vertex_v < number_of_edges; vertex_v++)      // Przeglądamy resztę grafu
     {
-        for (i = 0; i < number_of_edges; i++) C[i] = false;
+        for (i = 0; i < number_of_edges; i++) available_colors[i] = false;
 
-        for (p = second_graph[VT[vertex_v]]; p; p = p->next) // Przeglądamy sąsiadów bieżącego wierzchołka
-            if (CT[p->v] > -1) C[CT[p->v]] = true; // Oznaczamy kolor jako zajęty
+        for (p = second_graph[vertex_numbers_table[vertex_v]]; p; p = p->next) // Przeglądamy sąsiadów bieżącego wierzchołka
+            if (color_table[p->v] > -1) available_colors[color_table[p->v]] = true; // Oznaczamy kolor jako zajęty
 
-        for (i = 0; C[i]; i++); // Szukamy wolnego koloru
+        for (i = 0; available_colors[i]; i++); // Szukamy wolnego koloru
 
-        CT[VT[vertex_v]] = i;        // Przypisujemy go bieżącemu wierzchołkowi
+        color_table[vertex_numbers_table[vertex_v]] = i;        // Przypisujemy go bieżącemu wierzchołkowi
     }
 
     // Wyświetlamy wyniki
 
     cout << endl;
-    for (i = 0; i < number_of_edges; i++) C[i] = true;
+    for (i = 0; i < number_of_edges; i++) available_colors[i] = true;
     for (vertex_v = 0; vertex_v < number_of_vertexes; vertex_v++)
         for (p = graph[vertex_v]; p; p = p->next)
-            if (C[p->i]) {
-                C[p->i] = false;
-                cout << "edge " << vertex_v << "-" << p->v << " has color " << CT[p->i] << endl;
+            if (available_colors[p->i]) {
+                available_colors[p->i] = false;
+                cout << "edge " << vertex_v << "-" << p->v << " has color " << color_table[p->i] << endl;
             }
     cout << endl;
 
@@ -139,10 +139,10 @@ int main() {
 
     delete[] graph;
     delete[] second_graph;
-    delete[] CT;
-    delete[] DT;
-    delete[] VT;
-    delete[] C;
+    delete[] color_table;
+    delete[] order_table;
+    delete[] vertex_numbers_table;
+    delete[] available_colors;
 
     return 0;
 }
