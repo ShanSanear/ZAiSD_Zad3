@@ -11,15 +11,15 @@ using namespace std;
 
 struct node {
     node *next; // Następny element listy;
-    int v;          // Wierzchołek docelowy
-    int i;          // Numer krawędzi
+    int vertex_number;          // Wierzchołek docelowy
+    int edge_number;          // Numer krawędzi
 };
 
 int main() {
     int number_of_vertexes, number_of_edges, vertex_u, vertex_v;
-    int d, *color_table, *order_table, *vertex_numbers_table;
+    int current_vertex_color, *color_table, *order_table, *vertex_numbers_table;
     int i;
-    node **graph, **second_graph, *p, *r, *s;
+    node **graph, **second_graph, *current_node, *reference_node, *start_node;
     bool *available_colors;
 
     cin >> number_of_vertexes >> number_of_edges;            // Odczytujemy liczbę wierzchołków i krawędzi grafu
@@ -39,30 +39,33 @@ int main() {
 
     for (i = 0; i < number_of_edges; i++) {
         cin >> vertex_v >> vertex_u;     // Czytamy wierzchołki
-        p = new node;   // Tworzymy rekord listy
-        p->v = vertex_u;          // Wypełniamy go danymi
-        p->i = i;
-        p->next = graph[vertex_v]; // Element dołączamy do listy sąsiedztwa wierzchołka v
-        graph[vertex_v] = p;
+        current_node = new node;   // Tworzymy rekord listy
+        current_node->vertex_number = vertex_u;          // Wypełniamy go danymi
+        current_node->edge_number = i;
+        current_node->next = graph[vertex_v]; // Element dołączamy do listy sąsiedztwa wierzchołka v
+        graph[vertex_v] = current_node;
 
-        p = new node;   // To samo dla krawędzi odwrotnej
-        p->v = vertex_v;
-        p->i = i;
-        p->next = graph[vertex_u];
-        graph[vertex_u] = p;
+        current_node = new node;   // To samo dla krawędzi odwrotnej
+        current_node->vertex_number = vertex_v;
+        current_node->edge_number = i;
+        current_node->next = graph[vertex_u];
+        graph[vertex_u] = current_node;
     }
 
     // Tworzymy graf krawędziowy
 
-    for (vertex_v = 0; vertex_v < number_of_vertexes; vertex_v++)       // Przechodzimy przez kolejne wierzchołki grafu
-        for (p = graph[vertex_v]; p; p = p->next) // Przechodzimy przez listę sąsiadów wierzchołka v
-            for (r = graph[p->v]; r; r = r->next) // Przechodzimy przez listę sąsiadów sąsiada v
-                if (r->v != vertex_v) {
-                    s = new node;       // Tworzymy nowy element listy
-                    s->v = r->i;           // Wierzchołkiem docelowym będzie krawędź wychodząca
-                    s->next = second_graph[p->i]; // Wierzchołkiem startowym będzie krawędź wchodząca
-                    second_graph[p->i] = s;       // Dodajemy krawędź do grafu krawędziowego
+    for (vertex_v = 0; vertex_v < number_of_vertexes; vertex_v++) {    // Przechodzimy przez kolejne wierzchołki grafu
+        for (current_node = graph[vertex_v]; current_node; current_node = current_node->next) { // Przechodzimy przez listę sąsiadów wierzchołka v
+            for (reference_node = graph[current_node->vertex_number]; reference_node; reference_node = reference_node->next) { // Przechodzimy przez listę sąsiadów sąsiada v
+                if (reference_node->vertex_number != vertex_v) {
+                    start_node = new node;       // Tworzymy nowy element listy
+                    start_node->vertex_number = reference_node->edge_number;           // Wierzchołkiem docelowym będzie krawędź wychodząca
+                    start_node->next = second_graph[current_node->edge_number]; // Wierzchołkiem startowym będzie krawędź wchodząca
+                    second_graph[current_node->edge_number] = start_node;       // Dodajemy krawędź do grafu krawędziowego
                 }
+            }
+        }
+    }
 
     // Rozpoczynamy algorytm kolorowania grafu krawędziowego
 
@@ -71,38 +74,46 @@ int main() {
         vertex_numbers_table[vertex_v] = vertex_v;               // Zapamiętujemy numer wierzchołka
         order_table[vertex_v] = 0;               // Zerujemy jego stopień wyjściowy
 
-        for (p = second_graph[vertex_v]; p; p = p->next) // Przeglądamy kolejnych sąsiadów
+        for (current_node = second_graph[vertex_v]; current_node; current_node = current_node->next) // Przeglądamy kolejnych sąsiadów
             order_table[vertex_v]++;              // Obliczamy stopień wyjściowy wierzchołka v
 
-        // Sortujemy DT i VT
+        current_vertex_color = order_table[vertex_v];
+        int currently_checked_vertex;
 
-        d = order_table[vertex_v];
-
-        for (i = vertex_v; (i > 0) && (order_table[i - 1] < d); i--) {
-            order_table[i] = order_table[i - 1];
-            vertex_numbers_table[i] = vertex_numbers_table[i - 1];
+        for (currently_checked_vertex = vertex_v;
+             (currently_checked_vertex > 0) && (order_table[currently_checked_vertex - 1] < current_vertex_color);
+             currently_checked_vertex--) {
+            order_table[currently_checked_vertex] = order_table[currently_checked_vertex - 1];
+            vertex_numbers_table[currently_checked_vertex] = vertex_numbers_table[currently_checked_vertex - 1];
         }
 
-        order_table[i] = d;
-        vertex_numbers_table[i] = vertex_v;
+        order_table[currently_checked_vertex] = current_vertex_color;
+        vertex_numbers_table[currently_checked_vertex] = vertex_v;
     }
 
     // Teraz stosujemy algorytm zachłanny, lecz wierzchołki wybieramy wg VT
 
-    for (i = 0; i < number_of_edges; i++) color_table[i] = -1;
+    for (i = 0; i < number_of_edges; i++) {
+        color_table[i] = -1;
+    }
 
-    color_table[vertex_numbers_table[0]] = 0;          // Wierzchołek startowy
+    color_table[vertex_numbers_table[0]] = 0;
 
     for (vertex_v = 1; vertex_v < number_of_edges; vertex_v++)      // Przeglądamy resztę grafu
     {
-        for (i = 0; i < number_of_edges; i++) available_colors[i] = false;
+        for (i = 0; i < number_of_edges; i++) {
+            available_colors[i] = false;
+        }
 
-        for (p = second_graph[vertex_numbers_table[vertex_v]]; p; p = p->next) // Przeglądamy sąsiadów bieżącego wierzchołka
-            if (color_table[p->v] > -1) available_colors[color_table[p->v]] = true; // Oznaczamy kolor jako zajęty
+        for (current_node = second_graph[vertex_numbers_table[vertex_v]]; current_node; current_node = current_node->next) {
+            if (color_table[current_node->vertex_number] > -1) {
+                available_colors[color_table[current_node->vertex_number]] = true; // Oznaczamy kolor jako zajęty
+            }
+        }
+        int current_color;
+        for (current_color = 0; available_colors[current_color]; current_color++);
 
-        for (i = 0; available_colors[i]; i++); // Szukamy wolnego koloru
-
-        color_table[vertex_numbers_table[vertex_v]] = i;        // Przypisujemy go bieżącemu wierzchołkowi
+        color_table[vertex_numbers_table[vertex_v]] = current_color;        // Przypisujemy go bieżącemu wierzchołkowi
     }
 
     // Wyświetlamy wyniki
@@ -110,30 +121,31 @@ int main() {
     cout << endl;
     for (i = 0; i < number_of_edges; i++) available_colors[i] = true;
     for (vertex_v = 0; vertex_v < number_of_vertexes; vertex_v++)
-        for (p = graph[vertex_v]; p; p = p->next)
-            if (available_colors[p->i]) {
-                available_colors[p->i] = false;
-                cout << "edge " << vertex_v << "-" << p->v << " has color " << color_table[p->i] << endl;
+        for (current_node = graph[vertex_v]; current_node; current_node = current_node->next)
+            if (available_colors[current_node->edge_number]) {
+                available_colors[current_node->edge_number] = false;
+                cout << "edge " << vertex_v << "-" << current_node->vertex_number << " has color "
+                     << color_table[current_node->edge_number] << endl;
             }
     cout << endl;
 
     // Usuwamy tablice dynamiczne
 
     for (vertex_v = 0; vertex_v < number_of_vertexes; vertex_v++) {
-        p = graph[vertex_v];
-        while (p) {
-            r = p;
-            p = p->next;
-            delete r;
+        current_node = graph[vertex_v];
+        while (current_node) {
+            reference_node = current_node;
+            current_node = current_node->next;
+            delete reference_node;
         }
     }
 
     for (vertex_v = 0; vertex_v < number_of_edges; vertex_v++) {
-        p = second_graph[vertex_v];
-        while (p) {
-            r = p;
-            p = p->next;
-            delete r;
+        current_node = second_graph[vertex_v];
+        while (current_node) {
+            reference_node = current_node;
+            current_node = current_node->next;
+            delete reference_node;
         }
     }
 
