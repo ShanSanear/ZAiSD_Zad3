@@ -91,8 +91,6 @@ int main() {
         vertex_numbers_table[currently_checked_vertex] = vertex_v;
     }
 
-    // Teraz stosujemy algorytm zachłanny, lecz wierzchołki wybieramy wg VT
-
     for (i = 0; i < number_of_edges; i++) {
         color_table[i] = -1;
     }
